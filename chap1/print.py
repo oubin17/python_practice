@@ -1,5 +1,5 @@
 # a+ 文件不存在，则创建，存在，则追加
-fp=open('/Users/oubin/document/PythonProject/first_python/test.txt', "a+")
+fp=open('/test.txt', "a+")
 print("hello world", file=fp)
 fp.close()
 
