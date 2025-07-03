@@ -1,41 +1,63 @@
 import os
+import re
 
 
-class FileClean:
-    def __init__(self, file_name, file_size, file_path):
-        self.fileName = file_name
-        self.fileSize = file_size
-        self.filePath = file_path
+class LogFile:
+    def __init__(self, name, size, path):
+        self.name = name
+        self.size = size
+        self.path = path
 
 
-def clean_large_log(directories):
-    print("开始执行删除日志脚本...")
-    LOG_FILE_SIZE = 1024 * 1024 * 1024
+def clean_large_logs(directories, max_size_gb=1):
+    print("开始执行日志清理任务...")
+    MAX_SIZE_BYTES = max_size_gb * 1024 ** 3  # 转换为字节
 
-    fileList = []
-    for item in directories:
-        for root, dirs, files in os.walk(item):
-            for file_name in files:
-                file_path = os.path.join(root, file_name)
-                print(f"正在扫描文件:{file_path}...")
-                if file_path.endswith(".log"):
-                    file_size = os.path.getsize(file_path)
-                    if file_size > LOG_FILE_SIZE:
-                        try:
-                            # 清空文件内容
-                            with open(file_path, 'w') as file:
-                                file.truncate(0)
-                            fileList.append(FileClean(file_name, file_size, file_path))
+    regex = re.compile(r'.*\d{4}-\d{2}-\d{2}(\.\d{1,2})?\.(log|txt)$', re.IGNORECASE)
 
-                        except Exception as e:
-                            print(f"处理 {file_name} 时出错: {str(e)}")
-    print("已清空的文件列表：===================================================")
-    for item in fileList:
-        print(f"已清空: {item.fileName} (大小: {item.fileSize / LOG_FILE_SIZE:.2f}GB), 文件全路径：{item.filePath}")
-    print("结束删除日志脚本：===================================================")
+    cleaned_files = []
+    for directory in directories:
+        for root, _, files in os.walk(directory):
+            for filename in files:
+                filepath = os.path.join(root, filename)
+                if not (filename.endswith(".log") or filename.endswith(".txt")):
+                    continue
+
+                print(f"扫描文件: {filepath}")
+                try:
+                    filesize = os.path.getsize(filepath)
+                    if filesize > MAX_SIZE_BYTES:
+                        # 清空大日志文件
+                        with open(filepath, 'w') as f:
+                            f.truncate()
+                        cleaned_files.append(LogFile(filename, filesize, filepath))
+                    elif regex.match(filename):
+                        # 删除匹配正则表达式的日志文件
+                        os.remove(filepath)
+                        cleaned_files.append(LogFile(filename, filesize, filepath))
+                except Exception as e:
+                    print(f"处理 {filename} 出错: {e}")
+
+    # 输出清理结果
+    if cleaned_files:
+        print("\n已清理的日志文件列表：")
+        print("=" * 50)
+        for file in cleaned_files:
+            size_gb = file.size / MAX_SIZE_BYTES
+            print(f"• {file.name} ({size_gb:.2f}GB) @ {file.path}")
+        print("=" * 50)
+    else:
+        print("\n未发现需要清理的大日志文件")
+
+    print("日志清理任务完成")
 
 
 if __name__ == "__main__":
-    directory = ["/home/xyzq/afaadvisor", "/home/xyzq/afamarketing", "/home/xyzq/afascenetaskflow",
-                 "/home/xyzq/afacustomer", "/home/xyzq/afascene"]
-    clean_large_log(directory)
+    TARGET_DIRS = [
+        "/home/xyzq/afaadvisor",
+        "/home/xyzq/afamarketing",
+        "/home/xyzq/afascenetaskflow",
+        "/home/xyzq/afacustomer",
+        "/home/xyzq/afascene"
+    ]
+    clean_large_logs(TARGET_DIRS)
