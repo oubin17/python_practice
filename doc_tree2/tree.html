@@ -1,0 +1,1243 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>文件夹内容查看器</title>
+  <!-- 添加PDFObject库，用于PDF预览 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfobject/2.2.8/pdfobject.min.js"></script>
+  <style>
+    :root {
+      --primary-color: #4b6cb7;
+      --secondary-color: #182848;
+      --accent-color: #5e72e4;
+      --light-bg: #f8f9fa;
+      --dark-text: #333;
+      --light-text: #666;
+      --border-color: #e0e0e0;
+      --success-color: #2dce89;
+      --warning-color: #fb6340;
+      --shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+    }
+
+    body {
+      background: linear-gradient(135deg, #f5f7fa 0%, #e3e9f7 100%);
+      min-height: 100vh;
+      padding: 20px;
+      color: var(--dark-text);
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      background-color: white;
+      border-radius: 15px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      height: calc(100vh - 40px);
+    }
+
+    header {
+      background: linear-gradient(90deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+      color: white;
+      padding: 25px 30px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .header-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+    }
+
+    .header-left h1 {
+      font-size: 1.8rem;
+      font-weight: 600;
+      margin-bottom: 5px;
+    }
+
+    .header-info {
+      font-size: 0.9rem;
+      opacity: 0.85;
+      display: flex;
+      gap: 15px;
+    }
+
+    .info-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .info-icon {
+      font-size: 1.1rem;
+    }
+
+    .upload-area {
+      position: relative;
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 8px;
+      padding: 10px 15px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .upload-area:hover {
+      background: rgba(255, 255, 255, 0.25);
+    }
+
+    #folderInput {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      top: 0;
+      left: 0;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    .main-content {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .directory-tree {
+      width: 35%;
+      border-right: 1px solid var(--border-color);
+      padding: 20px;
+      overflow-y: auto;
+      background-color: var(--light-bg);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .tree-controls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+
+    .search-box {
+      flex: 1;
+      padding: 10px 15px;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      font-size: 0.95rem;
+      transition: border-color 0.3s;
+    }
+
+    .search-box:focus {
+      outline: none;
+      border-color: var(--accent-color);
+      box-shadow: 0 0 0 2px rgba(94, 114, 228, 0.2);
+    }
+
+    .btn {
+      padding: 10px 15px;
+      background: white;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .btn:hover {
+      background: #f0f2f5;
+      border-color: #cbd0dd;
+    }
+
+    .btn-primary {
+      background: var(--accent-color);
+      color: white;
+      border-color: var(--accent-color);
+    }
+
+    .btn-primary:hover {
+      background: #4a5fc9;
+    }
+
+    .tree {
+      list-style-type: none;
+      padding-left: 0;
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .tree li {
+      position: relative;
+      padding: 10px 5px 10px 35px;
+      cursor: pointer;
+      border-radius: 6px;
+      transition: all 0.2s;
+      margin-bottom: 3px;
+    }
+
+    .tree li:hover {
+      background-color: #edf1f7;
+    }
+
+    .tree li:before {
+      content: '';
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 20px;
+      height: 20px;
+      background-size: contain;
+      background-position: center;
+    }
+
+    .tree li.folder:before {
+      background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%234b6cb7"><path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>');
+    }
+
+    .tree li.file:before {
+      background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23666"><path d="M14 2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8l-6-6zm2 14H8v-2h8v2zm-3-4H8v-2h5v2zm3-4H8V8h8v2z"/></svg>');
+    }
+
+    .folder-children {
+      padding-left: 25px;
+      display: none;
+    }
+
+    .folder.open>.folder-children {
+      display: block;
+    }
+
+    .folder>.folder-name:after {
+      content: '▶';
+      position: absolute;
+      left: -5px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 12px;
+      color: #777;
+      transition: transform 0.2s;
+    }
+
+    .folder.open>.folder-name:after {
+      transform: translateY(-50%) rotate(90deg);
+    }
+
+    .file.active {
+      background-color: #e3eeff;
+      font-weight: 500;
+      color: var(--accent-color);
+    }
+
+    .file-size {
+      font-size: 0.8rem;
+      color: var(--light-text);
+      margin-left: 8px;
+      font-weight: normal;
+    }
+
+    .preview-pane {
+      width: 65%;
+      padding: 25px;
+      background-color: white;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .preview-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .preview-header h2 {
+      font-size: 1.4rem;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .file-icon {
+      font-size: 1.5rem;
+    }
+
+    .preview-content {
+      margin-top: 10px;
+      padding: 20px;
+      border-radius: 10px;
+      background-color: var(--light-bg);
+      flex: 1;
+      overflow: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .text-content {
+      white-space: pre-wrap;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 14px;
+      line-height: 1.7;
+      flex: 1;
+      overflow: auto;
+    }
+
+    .image-preview {
+      max-width: 100%;
+      max-height: 100%;
+      display: block;
+      margin: auto;
+      box-shadow: var(--shadow);
+      border-radius: 8px;
+    }
+
+    .empty-preview {
+      text-align: center;
+      padding: 40px;
+      color: var(--light-text);
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .empty-icon {
+      font-size: 4rem;
+      color: #cbd0dd;
+      margin-bottom: 20px;
+    }
+
+    .unsupported-file {
+      text-align: center;
+      padding: 50px;
+      color: var(--light-text);
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .unsupported-icon {
+      font-size: 3rem;
+      margin-bottom: 20px;
+      color: #cbd0dd;
+    }
+
+    .file-actions {
+      margin-top: 15px;
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+    }
+
+    .pdf-preview {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .pdf-preview iframe {
+      flex: 1;
+      border: 1px solid #eee;
+      border-radius: 8px;
+      background-color: white;
+      min-height: 500px;
+    }
+
+    .docx-preview {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    footer {
+      text-align: center;
+      padding: 15px;
+      background-color: var(--light-bg);
+      color: var(--light-text);
+      font-size: 0.9rem;
+      border-top: 1px solid var(--border-color);
+      flex-shrink: 0;
+    }
+
+    .status-bar {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 15px;
+      padding-top: 15px;
+      border-top: 1px solid var(--border-color);
+      font-size: 0.85rem;
+      color: var(--light-text);
+    }
+
+    .file-info {
+      display: flex;
+      gap: 15px;
+    }
+
+    @media (max-width: 992px) {
+      .main-content {
+        flex-direction: column;
+      }
+
+      .directory-tree,
+      .preview-pane {
+        width: 100%;
+        height: 50%;
+      }
+
+      .directory-tree {
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+      }
+    }
+
+    .loading {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100%;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid rgba(94, 114, 228, 0.2);
+      border-top: 4px solid var(--accent-color);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% {
+        transform: rotate(0deg);
+      }
+
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <header>
+      <div class="header-content">
+        <div class="header-left">
+          <h1>文件夹内容查看器</h1>
+          <div class="header-info">
+            <div class="info-item">
+              <span class="info-icon">📁</span>
+              <span id="folderCount">0 个文件夹</span>
+            </div>
+            <div class="info-item">
+              <span class="info-icon">📄</span>
+              <span id="fileCount">0 个文件</span>
+            </div>
+          </div>
+        </div>
+        <div class="upload-area" id="uploadArea">
+          <span>📂 选择文件夹</span>
+          <input type="file" id="folderInput" webkitdirectory directory multiple>
+        </div>
+      </div>
+    </header>
+
+    <div class="main-content">
+      <div class="directory-tree">
+        <div class="tree-controls">
+          <input type="text" id="search" class="search-box" placeholder="搜索文件或文件夹...">
+          <button class="btn" id="expandAll">展开所有</button>
+          <button class="btn" id="collapseAll">折叠所有</button>
+        </div>
+        <div class="tree" id="directoryTree">
+          <div class="empty-preview">
+            <div class="empty-icon">📁</div>
+            <h3>选择文件夹开始浏览</h3>
+            <p>点击右上角的"选择文件夹"按钮加载目录结构</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="preview-pane">
+        <div class="preview-header">
+          <h2 id="previewTitle">
+            <span class="file-icon">📄</span>
+            <span>文件预览</span>
+          </h2>
+        </div>
+        <div class="preview-content" id="previewContent">
+          <div class="empty-preview">
+            <div class="empty-icon">📄</div>
+            <h3>选择文件进行预览</h3>
+            <p>从左侧目录树中选择文件查看内容</p>
+          </div>
+        </div>
+        <div class="status-bar">
+          <div class="file-info">
+            <div id="fileType">文件类型: -</div>
+            <div id="fileSize">大小: -</div>
+            <div id="lastModified">修改时间: -</div>
+          </div>
+          <div id="filePath">路径: -</div>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      <div>使用说明: 将此HTML文件与要查看的文件夹放在同一目录下，然后打开HTML文件</div>
+      <div>提示: 仅支持文本、图像文件的预览，PDF预览可能受浏览器限制，DOCX文件需下载后查看</div>
+    </footer>
+  </div>
+
+  <script>
+    // 全局状态
+    const state = {
+      directoryTree: null,
+      currentFile: null,
+      openFolders: new Set()
+    };
+
+    // DOM元素
+    const directoryTreeEl = document.getElementById('directoryTree');
+    const previewContentEl = document.getElementById('previewContent');
+    const previewTitleEl = document.getElementById('previewTitle');
+    const searchInput = document.getElementById('search');
+    const expandAllBtn = document.getElementById('expandAll');
+    const collapseAllBtn = document.getElementById('collapseAll');
+    const folderInput = document.getElementById('folderInput');
+    const folderCountEl = document.getElementById('folderCount');
+    const fileCountEl = document.getElementById('fileCount');
+    const fileTypeEl = document.getElementById('fileType');
+    const fileSizeEl = document.getElementById('fileSize');
+    const lastModifiedEl = document.getElementById('lastModified');
+    const filePathEl = document.getElementById('filePath');
+
+    // 事件监听器
+    document.addEventListener('DOMContentLoaded', init);
+    searchInput.addEventListener('input', handleSearch);
+    expandAllBtn.addEventListener('click', expandAllFolders);
+    collapseAllBtn.addEventListener('click', collapseAllFolders);
+    folderInput.addEventListener('change', handleFolderSelection);
+
+    function init () {
+      // 初始状态
+      updateCounts(0, 0);
+    }
+
+    function handleFolderSelection (event) {
+      const files = event.target.files;
+      if (!files || files.length === 0) return;
+
+      // 获取文件夹路径（通过第一个文件的路径推导）
+      const firstFilePath = files[0].webkitRelativePath || files[0].name;
+      const folderPath = firstFilePath.includes('/')
+        ? firstFilePath.substring(0, firstFilePath.indexOf('/'))
+        : '';
+
+      // 构建目录树
+      buildDirectoryTree(files, folderPath);
+
+      // 更新计数
+      const counts = countItems(state.directoryTree);
+      updateCounts(counts.folders, counts.files);
+
+      // 渲染目录树
+      renderDirectoryTree();
+    }
+
+    function buildDirectoryTree (files, basePath) {
+      const tree = {
+        name: basePath || '根目录',
+        path: basePath || '',
+        type: 'folder',
+        children: []
+      };
+
+      const folderMap = {};
+
+      // 处理每个文件
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const relativePath = file.webkitRelativePath || file.name;
+
+        // 移除basePath部分
+        const pathParts = basePath
+          ? relativePath.replace(basePath + '/', '').split('/')
+          : relativePath.split('/');
+
+        let currentLevel = tree;
+
+        // 处理文件夹路径
+        for (let j = 0; j < pathParts.length - 1; j++) {
+          const folderName = pathParts[j];
+          const folderPath = basePath
+            ? `${basePath}/${pathParts.slice(0, j + 1).join('/')}`
+            : pathParts.slice(0, j + 1).join('/');
+
+          if (!folderMap[folderPath]) {
+            const newFolder = {
+              name: folderName,
+              path: folderPath,
+              type: 'folder',
+              children: []
+            };
+
+            currentLevel.children.push(newFolder);
+            folderMap[folderPath] = newFolder;
+            currentLevel = newFolder;
+          } else {
+            currentLevel = folderMap[folderPath];
+          }
+        }
+
+        // 添加文件
+        const fileName = pathParts[pathParts.length - 1];
+        const fileObj = {
+          name: fileName,
+          path: relativePath,
+          type: 'file',
+          file: file,
+          size: file.size,
+          lastModified: file.lastModified
+        };
+
+        currentLevel.children.push(fileObj);
+      }
+
+      state.directoryTree = tree;
+      return tree;
+    }
+
+    function renderDirectoryTree (node = state.directoryTree, parentEl = directoryTreeEl) {
+      if (!node) {
+        parentEl.innerHTML = '<div class="empty-preview"><div class="empty-icon">📁</div><h3>没有可显示的内容</h3></div>';
+        return;
+      }
+
+      parentEl.innerHTML = '';
+
+      // 递归渲染函数
+      function renderNode (node, container, level = 0) {
+        const li = document.createElement('li');
+        li.className = node.type;
+        li.dataset.path = node.path;
+
+        if (node.type === 'folder') {
+          const isOpen = state.openFolders.has(node.path);
+          if (isOpen) li.classList.add('open');
+
+          const nameSpan = document.createElement('div');
+          nameSpan.className = 'folder-name';
+          nameSpan.textContent = node.name;
+
+          li.appendChild(nameSpan);
+
+          const childrenUl = document.createElement('ul');
+          childrenUl.className = 'folder-children';
+
+          if (isOpen) {
+            childrenUl.style.display = 'block';
+          }
+
+          li.appendChild(childrenUl);
+
+          // 添加点击事件
+          nameSpan.addEventListener('click', function (e) {
+            e.stopPropagation();
+            toggleFolder(node.path);
+          });
+
+          // 递归渲染子节点
+          if (node.children && node.children.length > 0) {
+            node.children.forEach(child => {
+              renderNode(child, childrenUl, level + 1);
+            });
+          }
+        } else {
+          // 文件节点
+          li.textContent = node.name;
+          li.title = `大小: ${formatFileSize(node.size)}`;
+
+          // 添加文件大小标签
+          const sizeSpan = document.createElement('span');
+          sizeSpan.className = 'file-size';
+          sizeSpan.textContent = formatFileSize(node.size);
+          li.appendChild(sizeSpan);
+
+          // 添加点击事件
+          li.addEventListener('click', function (e) {
+            e.stopPropagation();
+            selectFile(node);
+          });
+        }
+
+        container.appendChild(li);
+      }
+
+      // 从根节点开始渲染
+      renderNode(node, parentEl);
+    }
+
+    function toggleFolder (path) {
+      if (state.openFolders.has(path)) {
+        state.openFolders.delete(path);
+      } else {
+        state.openFolders.add(path);
+      }
+      renderDirectoryTree();
+    }
+
+    function expandAllFolders () {
+      if (!state.directoryTree) return;
+
+      // 递归收集所有文件夹路径
+      function collectFolderPaths (node) {
+        if (node.type === 'folder') {
+          state.openFolders.add(node.path);
+          if (node.children) {
+            node.children.forEach(child => collectFolderPaths(child));
+          }
+        }
+      }
+
+      collectFolderPaths(state.directoryTree);
+      renderDirectoryTree();
+    }
+
+    function collapseAllFolders () {
+      state.openFolders.clear();
+      renderDirectoryTree();
+    }
+
+    function selectFile (fileNode) {
+      state.currentFile = fileNode;
+
+      // 更新UI
+      document.querySelectorAll('.file').forEach(el => {
+        el.classList.remove('active');
+      });
+
+      const fileEl = document.querySelector(`.file[data-path="${fileNode.path}"]`);
+      if (fileEl) {
+        fileEl.classList.add('active');
+      }
+
+      // 更新预览标题
+      previewTitleEl.innerHTML = `
+                <span class="file-icon">📄</span>
+                <span>${fileNode.name}</span>
+            `;
+
+      // 更新文件信息
+      fileTypeEl.textContent = `文件类型: ${getFileType(fileNode.name)}`;
+      fileSizeEl.textContent = `大小: ${formatFileSize(fileNode.size)}`;
+      lastModifiedEl.textContent = `修改时间: ${new Date(fileNode.lastModified).toLocaleString()}`;
+      filePathEl.textContent = `路径: ${fileNode.path}`;
+
+      // 显示加载状态
+      previewContentEl.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <div style="margin-left: 15px;">正在加载文件内容...</div>
+                </div>
+            `;
+
+      // 加载文件内容
+      setTimeout(() => previewFile(fileNode.file), 100);
+    }
+
+    function previewFile (file) {
+      const reader = new FileReader();
+      const fileName = file.name.toLowerCase();
+
+      reader.onload = function (e) {
+        const content = e.target.result;
+
+        // 根据文件类型显示不同内容
+        if (isImageFile(fileName)) {
+          previewContentEl.innerHTML = `
+                    <img src="${content}" class="image-preview" alt="${file.name}">
+                    <div class="file-actions">
+                        <button class="btn" onclick="zoomImage(1.2)">放大</button>
+                        <button class="btn" onclick="zoomImage(0.8)">缩小</button>
+                        <button class="btn" onclick="resetImage()">重置</button>
+                    </div>
+                `;
+        }
+        else if (isTextFile(fileName)) {
+          previewContentEl.innerHTML = `
+                    <pre class="text-content">${escapeHtml(content)}</pre>
+                `;
+        }
+        else if (isPdfFile(fileName)) {
+          // PDF文件预览 - 使用data URL直接嵌入PDF内容
+          // 注意：content已经是base64编码的数据URL
+
+          // 创建一个唯一ID，用于标识当前PDF预览
+          const pdfViewerId = 'pdf-viewer-' + Date.now();
+          const pdfContainerId = 'pdf-container-' + Date.now();
+
+          // 尝试使用多种方式预览PDF
+          previewContentEl.innerHTML = `
+            <div class="pdf-preview">
+              <div id="${pdfContainerId}" style="width:100%; height:500px; overflow:auto; position:relative;">
+                <!-- 方法1: 使用iframe和data URL -->
+                <iframe id="${pdfViewerId}" src="${content}" width="100%" height="100%" 
+                  style="border:none; display:block;" 
+                  onload="checkPdfLoaded('${pdfViewerId}', '${pdfContainerId}')"
+                  onerror="handlePdfError('${pdfViewerId}', '${pdfContainerId}')">
+                </iframe>
+                
+                <!-- 加载指示器 -->
+                <div id="pdfLoading" style="position:absolute; top:0; left:0; right:0; bottom:0; 
+                     background:rgba(255,255,255,0.8); display:flex; justify-content:center; 
+                     align-items:center; z-index:5;">
+                  <div style="text-align:center;">
+                    <div class="spinner"></div>
+                    <div style="margin-top:10px;">正在加载PDF，请稍候...</div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- 后备方案：如果预览失败 -->
+              <div id="pdfFallback" style="display:none; text-align:center; padding:20px;">
+                <div class="unsupported-file">
+                  <div class="unsupported-icon">📄</div>
+                  <h3>PDF预览可能受到限制</h3>
+                  <p>由于浏览器安全限制，无法直接预览本地PDF文件</p>
+                  <p>请尝试以下方法：</p>
+                  <ol style="text-align: left; margin-top: 10px; margin-bottom: 15px; display: inline-block;">
+                    <li>下载文件后在本地打开</li>
+                    <li>使用Chrome、Edge或Firefox浏览器</li>
+                    <li>检查浏览器是否有内置的PDF查看器</li>
+                  </ol>
+                </div>
+              </div>
+              
+              <div class="file-actions">
+                <button class="btn btn-primary" onclick="downloadCurrentFile()">
+                  下载文件
+                </button>
+                <button class="btn" onclick="tryAlternativePdfViewer('${content}', '${pdfContainerId}')">
+                  尝试其他预览方式
+                </button>
+              </div>
+            </div>
+          `;
+
+          // 延迟检查PDF预览是否成功加载
+          // 我们不在这里进行检查，而是通过iframe的onload和onerror事件处理
+        }
+        else if (isDocxFile(fileName)) {
+          // DOCX文件处理
+          const blob = new Blob([content], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+          const url = URL.createObjectURL(blob);
+
+          // 提供清晰的提示和选项
+          previewContentEl.innerHTML = `
+            <div class="docx-preview">
+              <div class="unsupported-file">
+                <div class="unsupported-icon">📄</div>
+                <h3>Word文档预览</h3>
+                <p>浏览器无法直接预览Word文档，您可以：</p>
+                <ol style="text-align: left; margin-top: 10px; margin-bottom: 15px;">
+                  <li>下载文件后在本地打开</li>
+                  <li>将文件上传到OneDrive或Google Drive后预览</li>
+                  <li>使用Office Online或Google Docs打开</li>
+                </ol>
+                <div class="file-actions">
+                  <button class="btn btn-primary" onclick="downloadCurrentFile()">
+                    下载文件
+                  </button>
+                </div>
+              </div>
+            </div>
+          `;
+        }
+        else {
+          previewContentEl.innerHTML = `
+                    <div class="unsupported-file">
+                        <div class="unsupported-icon">📁</div>
+                        <h3>不支持预览此文件类型</h3>
+                        <p>文件类型: ${getFileType(file.name)}</p>
+                        <div class="file-actions">
+                            <button class="btn btn-primary" onclick="downloadCurrentFile()">
+                                下载文件
+                            </button>
+                        </div>
+                    </div>
+                `;
+        }
+      };
+
+      reader.onerror = function () {
+        previewContentEl.innerHTML = `
+                <div class="unsupported-file">
+                    <div class="unsupported-icon">❌</div>
+                    <h3>无法加载文件内容</h3>
+                    <p>请确保文件未被占用且具有读取权限</p>
+                </div>
+            `;
+      };
+
+      // 根据文件类型选择读取方式
+      if (isTextFile(fileName)) {
+        reader.readAsText(file);
+      } else {
+        reader.readAsDataURL(file);
+      }
+    }
+
+    function handleSearch (e) {
+      const searchTerm = e.target.value.toLowerCase().trim();
+
+      if (!searchTerm || !state.directoryTree) {
+        renderDirectoryTree();
+        return;
+      }
+
+      // 递归搜索函数
+      function searchTree (node, term) {
+        if (!node) return null;
+
+        // 克隆节点以保持原始数据不变
+        const clone = { ...node };
+
+        if (clone.type === 'folder') {
+          // 递归过滤子节点
+          if (clone.children) {
+            clone.children = clone.children
+              .map(child => searchTree(child, term))
+              .filter(child => child !== null);
+          }
+
+          // 如果文件夹名称匹配或包含匹配的子节点，则保留
+          if (clone.name.toLowerCase().includes(term)) {
+            return clone;
+          } else if (clone.children && clone.children.length > 0) {
+            return clone;
+          }
+          return null;
+        } else {
+          // 文件节点 - 如果名称匹配则保留
+          if (clone.name.toLowerCase().includes(term)) {
+            return clone;
+          }
+          return null;
+        }
+      }
+
+      const filteredTree = searchTree(state.directoryTree, searchTerm);
+      renderDirectoryTree(filteredTree, directoryTreeEl);
+    }
+
+    function countItems (node) {
+      if (!node) return { folders: 0, files: 0 };
+
+      let folders = node.type === 'folder' ? 1 : 0;
+      let files = node.type === 'file' ? 1 : 0;
+
+      if (node.children) {
+        node.children.forEach(child => {
+          const counts = countItems(child);
+          folders += counts.folders;
+          files += counts.files;
+        });
+      }
+
+      return { folders, files };
+    }
+
+    function updateCounts (folders, files) {
+      folderCountEl.textContent = `${folders} 个文件夹`;
+      fileCountEl.textContent = `${files} 个文件`;
+    }
+
+    // 文件类型判断辅助函数
+    function isImageFile (filename) {
+      return /\.(jpe?g|png|gif|bmp|webp|svg)$/i.test(filename);
+    }
+
+    function isTextFile (filename) {
+      return /\.(txt|html?|css|js|json|xml|md|csv|ts|jsx|tsx|php|py|java|cpp|h|log|ini|conf|bat|sh)$/i.test(filename);
+    }
+
+    function isPdfFile (filename) {
+      return /\.pdf$/i.test(filename);
+    }
+
+    function isDocxFile (filename) {
+      return /\.docx$/i.test(filename);
+    }
+
+    function getFileType (filename) {
+      const ext = filename.split('.').pop().toLowerCase();
+      const types = {
+        'jpg': 'JPEG 图像',
+        'jpeg': 'JPEG 图像',
+        'png': 'PNG 图像',
+        'gif': 'GIF 图像',
+        'bmp': '位图图像',
+        'webp': 'WebP 图像',
+        'svg': 'SVG 矢量图像',
+        'pdf': 'PDF 文档',
+        'txt': '文本文档',
+        'html': 'HTML 文档',
+        'htm': 'HTML 文档',
+        'css': 'CSS 样式表',
+        'js': 'JavaScript 文件',
+        'json': 'JSON 数据',
+        'xml': 'XML 数据',
+        'md': 'Markdown 文档',
+        'csv': 'CSV 数据',
+        'ts': 'TypeScript 文件',
+        'jsx': 'React JSX 文件',
+        'tsx': 'React TSX 文件',
+        'php': 'PHP 脚本',
+        'py': 'Python 脚本',
+        'java': 'Java 源文件',
+        'cpp': 'C++ 源文件',
+        'h': 'C/C++ 头文件',
+        'log': '日志文件',
+        'ini': '配置文件',
+        'conf': '配置文件',
+        'bat': '批处理文件',
+        'sh': 'Shell 脚本',
+        'zip': 'ZIP 压缩文件',
+        'rar': 'RAR 压缩文件',
+        '7z': '7-Zip 压缩文件',
+        'exe': '可执行文件',
+        'msi': 'Windows 安装程序',
+        'doc': 'Word 文档',
+        'docx': 'Word 文档',
+        'xls': 'Excel 表格',
+        'xlsx': 'Excel 表格',
+        'ppt': 'PowerPoint 演示文稿',
+        'pptx': 'PowerPoint 演示文稿'
+      };
+
+      return types[ext] || `${ext.toUpperCase()} 文件`;
+    }
+
+    // 工具函数
+    function formatFileSize (bytes) {
+      if (bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    function escapeHtml (text) {
+      return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    // 图像预览控制函数
+    function zoomImage (factor) {
+      const img = previewContentEl.querySelector('img');
+      if (img) {
+        const currentWidth = img.offsetWidth;
+        img.style.width = (currentWidth * factor) + 'px';
+      }
+    }
+
+    function resetImage () {
+      const img = previewContentEl.querySelector('img');
+      if (img) {
+        img.style.width = '';
+      }
+    }
+
+    // 文件下载
+    function downloadCurrentFile () {
+      if (!state.currentFile) return;
+
+      const url = URL.createObjectURL(state.currentFile.file);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = state.currentFile.name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    // 为按钮添加全局访问
+    window.zoomImage = zoomImage;
+    window.resetImage = resetImage;
+    window.downloadCurrentFile = downloadCurrentFile;
+
+    // PDF预览相关函数
+    let pdfLoadCheckTimers = {};
+
+    // 检查PDF是否成功加载
+    window.checkPdfLoaded = function (iframeId, containerId) {
+      // 移除之前的计时器（如果有）
+      if (pdfLoadCheckTimers[iframeId]) {
+        clearTimeout(pdfLoadCheckTimers[iframeId]);
+      }
+
+      // 设置一个计时器，给PDF加载一些时间
+      pdfLoadCheckTimers[iframeId] = setTimeout(() => {
+        try {
+          const iframe = document.getElementById(iframeId);
+          const pdfLoading = document.getElementById('pdfLoading');
+          const pdfContainer = document.getElementById(containerId);
+          const pdfFallback = document.getElementById('pdfFallback');
+
+          if (iframe && pdfLoading) {
+            // 隐藏加载指示器
+            pdfLoading.style.display = 'none';
+
+            // 尝试检测iframe是否正确加载了PDF
+            let pdfLoaded = false;
+
+            try {
+              // 方法1：检查iframe内容
+              if (iframe.contentDocument &&
+                iframe.contentDocument.body &&
+                iframe.contentDocument.body.childNodes.length > 0) {
+                pdfLoaded = true;
+              }
+            } catch (e) {
+              // 跨域错误，无法访问iframe内容
+              console.log('无法访问iframe内容，尝试其他检测方法');
+            }
+
+            // 方法2：如果iframe有高度，可能表示内容已加载
+            if (!pdfLoaded && iframe.offsetHeight > 100) {
+              pdfLoaded = true;
+            }
+
+            // 方法3：检查iframe是否有滚动条（通常表示PDF已加载）
+            if (!pdfLoaded && iframe.contentWindow &&
+              (iframe.contentWindow.document.body.scrollHeight > iframe.offsetHeight ||
+                iframe.contentWindow.document.body.scrollWidth > iframe.offsetWidth)) {
+              pdfLoaded = true;
+            }
+
+            // 如果检测到PDF未成功加载，显示后备方案
+            if (!pdfLoaded) {
+              console.log('PDF似乎未成功加载，显示后备方案');
+              if (pdfContainer) pdfContainer.style.display = 'none';
+              if (pdfFallback) pdfFallback.style.display = 'block';
+            } else {
+              console.log('PDF已成功加载');
+            }
+          }
+        } catch (e) {
+          console.error('PDF加载检查失败:', e);
+        }
+      }, 3000); // 给PDF 3秒钟的时间加载，增加等待时间
+    };
+
+    // 处理PDF加载错误
+    window.handlePdfError = function (iframeId, containerId) {
+      try {
+        const iframe = document.getElementById(iframeId);
+        const pdfContainer = document.getElementById(containerId);
+        const pdfFallback = document.getElementById('pdfFallback');
+        const pdfLoading = document.getElementById('pdfLoading');
+
+        // 隐藏加载指示器
+        if (pdfLoading) {
+          pdfLoading.style.display = 'none';
+        }
+
+        // 显示后备方案
+        if (pdfContainer && pdfFallback) {
+          pdfContainer.style.display = 'none';
+          pdfFallback.style.display = 'block';
+        }
+      } catch (e) {
+        console.error('PDF错误处理失败:', e);
+      }
+    };
+
+    // 尝试其他PDF预览方式 (使用PDFObject库)
+    window.tryAlternativePdfViewer = function (pdfDataUrl, containerId) {
+      const pdfContainer = document.getElementById(containerId);
+      const pdfFallback = document.getElementById('pdfFallback');
+
+      if (!pdfContainer) {
+        console.error('PDF容器元素未找到');
+        return;
+      }
+
+      // 隐藏后备方案（如果显示的话）
+      if (pdfFallback) {
+        pdfFallback.style.display = 'none';
+      }
+
+      // 确保容器是可见的
+      pdfContainer.style.display = 'block';
+
+      // 清空容器内容
+      pdfContainer.innerHTML = '';
+
+      try {
+        // 检查PDFObject是否可用
+        if (typeof PDFObject === 'undefined') {
+          console.error('PDFObject库未加载');
+          throw new Error('PDFObject库未加载');
+        }
+
+        // 使用PDFObject库尝试嵌入PDF
+        const success = PDFObject.embed(pdfDataUrl, pdfContainer);
+
+        // 如果嵌入失败，显示错误信息
+        if (!success) {
+          throw new Error('PDFObject嵌入失败');
+        }
+      } catch (e) {
+        console.error('备用PDF预览失败:', e);
+
+        // 显示简单的嵌入方式
+        pdfContainer.innerHTML = `
+          <object data="${pdfDataUrl}" type="application/pdf" width="100%" height="100%">
+            <embed src="${pdfDataUrl}" type="application/pdf" width="100%" height="100%">
+              <p>您的浏览器不支持PDF预览。<a href="${pdfDataUrl}" target="_blank">点击下载PDF</a></p>
+            </embed>
+          </object>
+        `;
+      }
+    };
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,31 @@
+
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>目录结构</title>
+        <style>
+            ul { list-style-type: none; padding-left: 20px; }
+            .caret { cursor: pointer; user-select: none; }
+            .caret::before { content: "\25B6"; display: inline-block; margin-right: 6px; }
+            .caret-down::before { transform: rotate(90deg); }
+            .nested { display: none; }
+            .active { display: block; }
+        </style>
+    </head>
+    <body>
+        <h2>文件目录结构</h2>
+        <ul>
+    <li><span class="caret">Downloads</span><ul class="nested"><li>📄 2025年度上半年工作总结及下半年工作计划-员工端应用开发组-欧斌.docx</li><li>📄 .DS_Store</li><li>📄 .localized</li><li>📄 附件1：“基金E账户”APP使用说明_.pdf</li><li>📄 附件2：“电子营业执照”微信小程序使用说明.pdf</li><li>📄 iShot_2025-07-07_16.07.07.png</li><li>📄 基金E账户App投资者公募基金持有信息-【2025-07-02】.zip</li><li>📄 中登.png</li><li>📄 iShot_2025-07-07_16.07.06.png</li><li>📄 附件3：投资行为定期申报及查询要求宣导-20250702.pptx</li><li>📄 iShot_2025-07-02_19.54.05.mp4</li><li>📄 基金等金融产品持仓导入-欧斌.xlsx</li><li>📄 未确认 769814.crdownload</li><li>📄 基金等金融产品持仓导入模板 (1).xlsx</li><li>📄 .流浪地球.mp4.js</li><li>📄 用户标签管理导入模版.xls</li><li>📄 iShot_2025-07-02_11.04.57.png</li></ul></li>    <li><span class="caret">test</span><ul class="nested">    <li>📄 2025年度上半年工作总结及下半年工作计划-员工端应用开发组-欧斌.docx</li>    <li>📄 log-total-2025-06-18.01.log</li></ul></li>    <li><span class="caret">jishi</span><ul class="nested">    <li>📄 countdown_app_design.html</li>    <li>📄 cursor_rules_countdown_app.md</li>    <li>📄 countdown_app_wireframe.md</li></ul></li>    <li><span class="caret">.Temp</span><ul class="nested"></ul></li>
+        </ul>
+        <script>
+            var toggler = document.getElementsByClassName("caret");
+            for (var i = 0; i < toggler.length; i++) {
+                toggler[i].addEventListener("click", function() {
+                    this.parentElement.querySelector(".nested").classList.toggle("active");
+                    this.classList.toggle("caret-down");
+                });
+            }
+        </script>
+    </body>
+    </html>
+    
